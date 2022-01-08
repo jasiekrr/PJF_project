@@ -1,5 +1,4 @@
 import pygame as p
-import numpy as np
 import chess
 from Pawn import Pawn
 from King import King
@@ -17,9 +16,14 @@ def pgn_to_num(position: str) -> tuple:
 class CurrentPosition:
     def __init__(self, screen: p.surface):
         # BOOLS:
-        self.already_castled = False
+        self.board = None
+        self.white_long_castles_rights = True
+        self.white_short_castles_rights = True
+        self.black_long_castles_rights = True
+        self.black_short_castles_rights = True
+        self.white_queens_spawned = 0   # numbers of queens can vary because of pawns' promotions
+        self.black_queens_spawned = 0
         self.player_to_move = True
-
         self.lines = ["1", "2", "3", "4", "5", "6", "7", "8"]
         self.rows = ["a", "b", "c", "d", "e", "f", "g", "h"]
         self.chessboard = [self.rows[j] + self.lines[i] for j in range(len(self.lines)) for i in range(len(self.lines))]
@@ -33,8 +37,11 @@ class CurrentPosition:
             self.black_pieces[piece].draw_element()
 
     def reset_position(self, screen):
+        self.board = chess.Board()
         self.white_pieces.clear()
         self.black_pieces.clear()
+        self.white_queens_spawned = 0
+        self.black_queens_spawned = 0
 
         wp1 = Pawn(self.white_pieces, screen, "a2", True)
         wp2 = Pawn(self.white_pieces, screen, "b2", True)
