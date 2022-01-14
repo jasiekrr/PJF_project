@@ -24,11 +24,13 @@ class CurrentPosition:
         self.white_queens_spawned = 0   # numbers of queens can vary because of pawns' promotions
         self.black_queens_spawned = 0
         self.player_to_move = True
+        self.en_passant = False
         self.lines = ["1", "2", "3", "4", "5", "6", "7", "8"]
         self.rows = ["a", "b", "c", "d", "e", "f", "g", "h"]
         self.chessboard = [self.rows[j] + self.lines[i] for j in range(len(self.lines)) for i in range(len(self.lines))]
         self.white_pieces = {}
         self.black_pieces = {}
+
 
     def draw_position(self):
         for piece in self.white_pieces:

@@ -4,6 +4,7 @@ import pygame as p
 import chess
 
 from Pawn import Pawn
+from Pawn import Pawn
 from Queen import Queen
 
 PLAYER_TO_MOVE = None
@@ -37,9 +38,9 @@ def display_board(screen: p.surface):
     for i in range(8):
         for j in range(8):
             if (i + j) % 2 == 0:
-                p.draw.rect(screen, p.Color("white"), p.Rect(i * 512 / 8, j * 512 / 8, 512 / 8, 512 / 8))
+                p.draw.rect(screen, p.Color("white"), p.Rect(i * 64, j * 64, 64, 64))
             else:
-                p.draw.rect(screen, p.Color("dark grey"), p.Rect(i * 512 / 8, j * 512 / 8, 512 / 8, 512 / 8))
+                p.draw.rect(screen, p.Color("dark grey"), p.Rect(i * 64, j * 64, 64, 64))
 
 
 def manage_click():
@@ -73,6 +74,8 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
 
             if chess.Move.from_uci(move_squares) in cp.board.legal_moves:  # checking whether requested move is legal
                 # if it is, executing a move:
+                check_en_passant(sq_pgn,cp,opponent_pieces)
+                set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
                 if PLAYER_TO_MOVE is True and sq_pgn == "g1" and cp.white_short_castles_rights is True:  # managing
                     # white's kingside castles
                     pieces["h1"].change_position("f1")  # rotate the castled rook
@@ -133,9 +136,79 @@ def board_refresh(cp: CurrentPosition, move_squares: str, event_log: list, sq_pg
     clicks.clear()
 
 
+# function executing en_passant capture
+def check_en_passant(sq_pgn: str, cp: CurrentPosition, opponent_pieces: dict):
+    global PLAYER_TO_MOVE
+    # deleted_piece : str
+    if cp.en_passant is True:
+        if PLAYER_TO_MOVE is True:
+            deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) - 1)
+            del opponent_pieces[deleted_piece]
+        elif PLAYER_TO_MOVE is False:
+            deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) + 1)
+            del opponent_pieces[deleted_piece]
+
+
+# function checking, whether actual move is en-passant possible, and setting en_passant flag
+def set_en_passant(cp: CurrentPosition, move_squares: str, event_log: list, sq_pgn: str, pieces: dict,
+                   opponent_pieces: dict):
+    global PLAYER_TO_MOVE
+
+    if PLAYER_TO_MOVE is True:
+        if move_squares[1] == '2' and move_squares[3] == '4' and type(pieces[event_log[-1]]) is Pawn:
+            if neighboring_pawn(sq_pgn, opponent_pieces) is not None:
+                cp.en_passant = True
+    if PLAYER_TO_MOVE is False:
+        if move_squares[1] == '7' and move_squares[3] == '5' and type(pieces[event_log[-1]]) is Pawn:
+            if neighboring_pawn(sq_pgn, opponent_pieces) is not None:
+                cp.en_passant = True
+
+
+# function returning square occupied by opponents' pawn, which can capture en passant:
+def neighboring_pawn(sq_pgn: str, opponent_pieces: dict):
+    global PLAYER_TO_MOVE
+    if PLAYER_TO_MOVE is True:
+        if sq_pgn[0] == 'a':
+            if "b4" in opponent_pieces and type(opponent_pieces["b4"]) is Pawn:
+                return "b4"
+        elif sq_pgn[1] == 'h':
+            if "g4" in opponent_pieces and type(opponent_pieces["g4"]) is Pawn:
+                return "g4"
+        else:
+            if num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1]) in opponent_pieces and type(
+                    opponent_pieces[num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1])]) is Pawn:
+                return num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1])
+            elif num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1]) in opponent_pieces and type(
+                    opponent_pieces[num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1])]) is Pawn:
+                return num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1])
+            else:
+                return None
+    else:
+        if sq_pgn[0] == 'a':
+            if "b6" in opponent_pieces and type(opponent_pieces["b6"]) is Pawn:
+                return "b6"
+        elif sq_pgn[1] == 'h':
+            if "g6" in opponent_pieces and type(opponent_pieces["g6"]) is Pawn:
+                return "g6"
+        else:
+            if num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1]) in opponent_pieces and type(
+                    opponent_pieces[num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1])]) is Pawn:
+                return num_to_pgn(pgn_to_num(sq_pgn)[0] - 1, pgn_to_num(sq_pgn)[1])
+            elif num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1]) in opponent_pieces and type(
+                    opponent_pieces[num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1])]) is Pawn:
+                return num_to_pgn(pgn_to_num(sq_pgn)[0] + 1, pgn_to_num(sq_pgn)[1])
+            else:
+                return None
+
+
 def num_to_pgn(square_x: int, square_y: int) -> str:
     line_dict = {1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"}
     return line_dict[square_x] + str(square_y)
+
+
+def pgn_to_num(position: str) -> tuple:
+    line_dict = {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8}
+    return line_dict[position[0]], int(position[1])
 
 
 def pawn_promotion(player: bool, line: str, cp: CurrentPosition, screen: p.surface):

@@ -10,8 +10,6 @@ class Pawn(Element):
         self.position = position
         self.player = player
         chessboard[position] = self
-        self.enPassantAbility = False
-
         if player is True:
             self.pic = p.image.load("images/wp.png")
         else:
