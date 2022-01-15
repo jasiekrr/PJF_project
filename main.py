@@ -2,19 +2,18 @@ import sys
 from CurrentPosition import CurrentPosition
 import pygame as p
 import chess
-
-from Pawn import Pawn
 from Pawn import Pawn
 from Queen import Queen
 
 PLAYER_TO_MOVE = None
 WHITE_MOVES = []
 BLACK_MOVES = []
+en_passant_pawn = None
 
 
 def app_Run():
     p.init()
-    screen = p.display.set_mode((512, 512))
+    screen = p.display.set_mode((700, 700))
     clk = p.time.Clock()
     display_board(screen)
     cp = CurrentPosition(screen)
@@ -52,6 +51,8 @@ def manage_click():
 
 def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
     global PLAYER_TO_MOVE
+    global en_passant_pawn
+
     sq_pgn = manage_click()
     if PLAYER_TO_MOVE is True:  # white to move
         event_log = WHITE_MOVES
@@ -74,8 +75,9 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
 
             if chess.Move.from_uci(move_squares) in cp.board.legal_moves:  # checking whether requested move is legal
                 # if it is, executing a move:
-                check_en_passant(sq_pgn,cp,opponent_pieces)
-                set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
+                check_en_passant(move_squares,sq_pgn, cp, pieces, opponent_pieces)
+                en_passant_pawn = set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
+
                 if PLAYER_TO_MOVE is True and sq_pgn == "g1" and cp.white_short_castles_rights is True:  # managing
                     # white's kingside castles
                     pieces["h1"].change_position("f1")  # rotate the castled rook
@@ -129,39 +131,47 @@ def board_refresh(cp: CurrentPosition, move_squares: str, event_log: list, sq_pg
 
     display_board(screen)  # redrawing chessboard
     cp.draw_position()  # drawing updated pieces
-
     PLAYER_TO_MOVE = not PLAYER_TO_MOVE
-
     p.display.flip()
     clicks.clear()
 
 
 # function executing en_passant capture
-def check_en_passant(sq_pgn: str, cp: CurrentPosition, opponent_pieces: dict):
+def check_en_passant (move_squares : str, sq_pgn: str, cp: CurrentPosition, pieces: dict, opponent_pieces: dict):
     global PLAYER_TO_MOVE
-    # deleted_piece : str
-    if cp.en_passant is True:
+    global en_passant_pawn
+    if cp.en_passant is True and en_passant_pawn is not None:
         if PLAYER_TO_MOVE is True:
-            deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) - 1)
-            del opponent_pieces[deleted_piece]
+            if type(pieces[(move_squares[0] + move_squares[1])]) is Pawn and (sq_pgn == (en_passant_pawn[0] + '6')):
+                deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) - 1)
+                del opponent_pieces[deleted_piece]
+                cp.en_passant = False
+            else:
+                cp.en_passant = False
         elif PLAYER_TO_MOVE is False:
-            deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) + 1)
-            del opponent_pieces[deleted_piece]
+            if type(pieces[(move_squares[0] + move_squares[1])]) is Pawn and (sq_pgn == (en_passant_pawn[0] + '3')):
+                deleted_piece = sq_pgn[0] + str(int(sq_pgn[1]) + 1)
+                del opponent_pieces[deleted_piece]
+                cp.en_passant = False
+            else:
+                cp.en_passant = False
 
 
 # function checking, whether actual move is en-passant possible, and setting en_passant flag
 def set_en_passant(cp: CurrentPosition, move_squares: str, event_log: list, sq_pgn: str, pieces: dict,
                    opponent_pieces: dict):
     global PLAYER_TO_MOVE
-
+    en_passant_pawn: str
     if PLAYER_TO_MOVE is True:
         if move_squares[1] == '2' and move_squares[3] == '4' and type(pieces[event_log[-1]]) is Pawn:
             if neighboring_pawn(sq_pgn, opponent_pieces) is not None:
                 cp.en_passant = True
+                return sq_pgn  # returns square of pawn which is possible to capture en_passant next move
     if PLAYER_TO_MOVE is False:
         if move_squares[1] == '7' and move_squares[3] == '5' and type(pieces[event_log[-1]]) is Pawn:
             if neighboring_pawn(sq_pgn, opponent_pieces) is not None:
                 cp.en_passant = True
+                return sq_pgn  # returns square of pawn which is possible to capture en_passant next move
 
 
 # function returning square occupied by opponents' pawn, which can capture en passant:
