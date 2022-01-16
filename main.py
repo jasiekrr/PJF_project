@@ -73,6 +73,7 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
     sq_pgn = manage_click()
 
     if sq_pgn is not None:
+
         if PLAYER_TO_MOVE is True:  # white to move
             event_log = WHITE_MOVES
             pieces = cp.white_pieces
@@ -97,23 +98,35 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
                     # if it is, executing a move:
                     check_en_passant(move_squares, sq_pgn, cp, pieces, opponent_pieces)
                     en_passant_pawn = set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
-
-                    if PLAYER_TO_MOVE is True and sq_pgn == "g1" and cp.white_short_castles_rights is True:  # managing
+                    print(pieces)
+                    if PLAYER_TO_MOVE is True and sq_pgn == "g1" and cp.white_short_castles_rights is True and \
+                            (move_squares[0] + move_squares[1]) == "e1":  # managing
                         # white's kingside castles
                         pieces["h1"].change_position("f1")  # rotate the castled rook
                         cp.white_short_castles_rights = False
-                    elif PLAYER_TO_MOVE is True and sq_pgn == "c1" and cp.white_long_castles_rights is True:  # managing
+                        pieces.update({"f1": pieces["h1"], sq_pgn: pieces["h1"]})  # adding new position to dict
+                        del pieces["h1"]  # deleting obsolete position
+                    elif PLAYER_TO_MOVE is True and sq_pgn == "c1" and cp.white_long_castles_rights is True and \
+                        (move_squares[0] + move_squares[1]) == "e1":  # managing
                         # white's queenside castles
-                        pieces["a1"].change_position("e1")  # rotate the castled rook
+                        pieces["a1"].change_position("d1")  # rotate the castled rook
                         cp.white_long_castles_rights = False
-                    if PLAYER_TO_MOVE is False and sq_pgn == "g8" and cp.black_short_castles_rights is True:  # managing
+                        pieces.update({"d1": pieces["a1"], sq_pgn: pieces["a1"]})  # adding new position to dict
+                        del pieces["a1"]  # deleting obsolete position
+                    if PLAYER_TO_MOVE is False and sq_pgn == "g8" and cp.black_short_castles_rights is True and \
+                            (move_squares[0] + move_squares[1]) == "e8":  # managing
                         # black's kingside castles
                         pieces["h8"].change_position("f8")  # rotate the castled rook
                         cp.black_short_castles_rights = False
-                    elif PLAYER_TO_MOVE is False and sq_pgn == "c8" and cp.black_long_castles_rights is True:
+                        pieces.update({"f8": pieces["h8"], sq_pgn: pieces["h8"]})  # adding new position to dict
+                        del pieces["h8"]  # deleting obsolete position
+                    elif PLAYER_TO_MOVE is False and sq_pgn == "c8" and cp.black_long_castles_rights is True and \
+                            (move_squares[0] + move_squares[1]) == "e8":
                         # managing black's queenside castles
-                        pieces["a8"].change_position("e8")  # rotate the castled rook
+                        pieces["a8"].change_position("d8")  # rotate the castled rook
                         cp.black_long_castles_rights = False
+                        pieces.update({"d8": pieces["a8"], sq_pgn: pieces["a8"]})  # adding new position to dict
+                        del pieces["a8"]  # deleting obsolete position
 
                     # checking white's rights to castle kingside, changing to FALSE if king or rook are moved
                     if event_log[-1] == "e1" or event_log[-1] == "h1":
