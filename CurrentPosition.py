@@ -43,6 +43,12 @@ class CurrentPosition:
         self.black_pieces.clear()
         self.white_queens_spawned = 0
         self.black_queens_spawned = 0
+        self.white_long_castles_rights = True
+        self.white_short_castles_rights = True
+        self.black_long_castles_rights = True
+        self.black_short_castles_rights = True
+        self.player_to_move = True
+        self.en_passant = False
 
         wp1 = Pawn(self.white_pieces, screen, "a2", True)
         wp2 = Pawn(self.white_pieces, screen, "b2", True)
