@@ -1,6 +1,4 @@
 import sys
-import random
-from Bot import Bot
 from CurrentPosition import CurrentPosition
 import pygame as p
 from Background import Background
@@ -30,8 +28,6 @@ def app_Run():
     btn_challenge = Button(screen, (520, 180), "train", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
     btn_against_bot = Button(screen, (520, 280), "pvp", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
     btn_exit = Button(screen, (520, 380), "exit", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
-    bot = Bot(cp.board)
-
     global PLAYER_TO_MOVE
     PLAYER_TO_MOVE = True
     clicks = []
@@ -49,9 +45,9 @@ def app_Run():
             elif btn_restart.clicked is True:
                 event_restart(cp, screen, clicks)
             elif btn_challenge.clicked is True:
-                event_challenge(bot, cp, screen, clicks)
+                event_challenge(cp, screen, clicks)
             elif btn_against_bot.clicked is True:
-                event_against_bot(bot, cp, screen, clicks)
+                event_against_bot(cp, screen, clicks, True)
             elif btn_exit.clicked is True:
                 sys.exit()
 
@@ -83,15 +79,10 @@ def manage_click():
         return None
 
 
-def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, engine_move=None):
+def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list):
     global PLAYER_TO_MOVE
     global en_passant_pawn
     sq_pgn = manage_click()
-
-    if engine_move is not None:
-        clicks.append(engine_move[0] + engine_move[1])
-        sq_pgn = (engine_move[2] + engine_move[3])
-        print(f'sqpgn = {sq_pgn}')
 
     if sq_pgn is not None:
         if PLAYER_TO_MOVE is True:  # white to move
@@ -102,9 +93,6 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, engine_mov
             event_log = BLACK_MOVES
             pieces = cp.black_pieces
             opponent_pieces = cp.white_pieces
-        if engine_move is not None:
-            event_log.append(engine_move[0] + engine_move[1])
-            print(pieces)
         if sq_pgn in pieces:  # checking whether player's piece is clicked
             event_log.append(sq_pgn)
             clicks.clear()
@@ -112,15 +100,13 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, engine_mov
         else:
             if len(clicks) == 1:
                 move_squares = event_log[-1] + sq_pgn  # saving a move in format : "sq1sq2"
-                if chess.Move.from_uci(move_squares + "q") in cp.board.legal_moves:
+                if chess.Move.from_uci(move_squares + "q") in cp.bot.board.legal_moves:
                     move_squares += 'q'
-
                 if chess.Move.from_uci(
-                        move_squares) in cp.board.legal_moves:  # checking whether requested move is legal
+                        move_squares) in cp.bot.board.legal_moves:  # checking whether requested move is legal
                     # if it is, executing a move:
                     check_en_passant(move_squares, sq_pgn, cp, pieces, opponent_pieces)
                     en_passant_pawn = set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
-                    print(pieces)
                     if PLAYER_TO_MOVE is True and sq_pgn == "g1" and cp.white_short_castles_rights is True and \
                             (move_squares[0] + move_squares[1]) == "e1":  # managing
                         # white's kingside castles
@@ -162,17 +148,33 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, engine_mov
                     # checking black's rights to castle queenside, changing to FALSE if king or rook are moved
                     elif event_log[-1] == "e8" or event_log[-1] == "a8":
                         cp.black_long_castles_rights = False
-                    print(f"move = {move_squares}")
-                    board_refresh(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces, screen, clicks)
+                    board_refresh(cp, move_squares, screen)
+                    clicks.clear()
                 else:  # if move is illegal, resetting list of clicks to 1
                     clicks.pop()
 
 
-def board_refresh(cp: CurrentPosition, move_squares: str, event_log: list, sq_pgn: str, pieces: dict,
-                  opponent_pieces: dict, screen: p.surface, clicks: list):
+def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface):
     global PLAYER_TO_MOVE
-    cp.board.push_uci(move_squares)
-    event_log.append(sq_pgn)  # adding move to log
+
+    if PLAYER_TO_MOVE is True:
+        pieces = cp.white_pieces
+        opponent_pieces = cp.black_pieces
+        event_log = WHITE_MOVES
+    else:
+        pieces = cp.black_pieces
+        opponent_pieces = cp.white_pieces
+        event_log = BLACK_MOVES
+
+    event_log = [move_squares[0] + move_squares[1], move_squares[2] + move_squares[3]]
+    sq_pgn = event_log[1]
+
+    """if engine_move is not None:
+        sq_pgn = (engine_move[2] + engine_move[3])"""
+
+    cp.bot.analyse_pos()
+
+    #event_log.append(sq_pgn)  # adding move to log
     moved_piece = pieces[event_log[-2]]
     moved_piece.change_position(sq_pgn)
     pieces.update({event_log[-2]: moved_piece, sq_pgn: moved_piece})  # adding new position to dict
@@ -184,15 +186,12 @@ def board_refresh(cp: CurrentPosition, move_squares: str, event_log: list, sq_pg
         del pieces[sq_pgn]
         pawn_promotion(PLAYER_TO_MOVE, sq_pgn[0], cp, screen)
 
+    cp.bot.board.push(chess.Move.from_uci(move_squares))
+
     display_board(screen)  # redrawing chessboard
     cp.draw_position()  # drawing updated pieces
     PLAYER_TO_MOVE = not PLAYER_TO_MOVE
     p.display.flip()
-    clicks.clear()
-
-
-# def draw_move(cp: CurrentPosition, uci_move: str, pieces: dict, opponent_pieces: dict, screen: p.surface):
-
 
 # function executing en_passant capture
 def check_en_passant(move_squares: str, sq_pgn: str, cp: CurrentPosition, pieces: dict, opponent_pieces: dict):
@@ -302,32 +301,35 @@ def event_restart(cp: CurrentPosition, screen: p.surface, clicks: list):
     PLAYER_TO_MOVE = True
 
 
-def event_challenge(bot: Bot, cp: CurrentPosition, screen: p.surface, clicks: list, n=14, doctrine=False):
+def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=2, doctrine=True):
     global PLAYER_TO_MOVE
-    bot.board = bot.refresh()
     cp.reset_position(screen)
-    display_board(screen)  # redrawing chessboard
-    cp.draw_position()  # drawing updated pieces
+
+    """display_board(screen)  # redrawing chessboard
+    cp.draw_position()  # drawing updated pieces"""
+
     PLAYER_TO_MOVE = True
 
     if doctrine is True:
         for i in range(n):
-            result = bot.engine.play(bot.board, chess.engine.Limit(time=0.1))
-            bot.board.push(result.move)
-            manage_move(screen, cp, clicks, str(result.move))
-            if bot.board.is_game_over():
-                event_challenge(bot, cp, screen, clicks, n)
+            result = cp.bot.engine.play(cp.bot.board, chess.engine.Limit(time=0.1))
+            #cp.bot.board.push(result.move)
+
+            board_refresh(cp, result.move.uci(), screen)
+            PLAYER_TO_MOVE = not PLAYER_TO_MOVE
+            if cp.bot.board.is_game_over():
+                event_challenge(cp, screen, clicks, n)
     else:
         for i in range(n // 2):
-            move = bot.get_random_move()
-            bot.board.push(chess.Move.from_uci(move))
-            manage_move(screen, cp, clicks, move)
+            move = cp.bot.get_random_move()
+            cp.bot.board.push(chess.Move.from_uci(move))
+            #board_refresh(cp, result.move.uci(), screen)
 
-            result_move = bot.get_best_move()
-            manage_move(screen, cp, clicks, result_move)
-
-            if bot.board.is_game_over():
-                event_challenge(bot, cp, screen, clicks, n)
+            result_move = cp.bot.get_best_move()
+            #board_refresh(cp, result.move.uci(), screen)
+            cp.bot.board.push(chess.Move.from_uci(result_move))
+            if cp.bot.board.is_game_over():
+                event_challenge(cp, screen, clicks, n)
 
     display_board(screen)  # redrawing chessboard
     cp.draw_position()  # drawing updated pieces
@@ -335,9 +337,20 @@ def event_challenge(bot: Bot, cp: CurrentPosition, screen: p.surface, clicks: li
     clicks.clear()
 
 
-def event_against_bot(bot: Bot, cp: CurrentPosition, screen: p.surface, clicks: list):
+def event_against_bot(cp: CurrentPosition, screen: p.surface, clicks: list, color: bool):
+    global PLAYER_TO_MOVE
     event_restart(cp, screen, clicks)
 
+
+"""
+    while bot.board.is_game_over() is False:
+        
+        if color is PLAYER_TO_MOVE:
+            manage_move(screen, cp, clicks)
+        else:
+            result_move = bot.get_best_move()
+            manage_move(screen, cp, clicks, result_move)
+"""
 
 if __name__ == '__main__':
     app_Run()
