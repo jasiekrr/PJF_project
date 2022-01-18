@@ -26,23 +26,18 @@ class Button(p.sprite.Sprite):
 
     # drawing button:
     def draw(self):
+        self.click()
         btn_y = self.button_h + (self.size[1] / 2.5)
         self.animated_rect.y = self.button_h
-        p.draw.rect(self.screen, self.color_bottom, self.static_rect, border_radius=12)
-        if self.clicked is False:
-            p.draw.rect(self.screen, self.color_top, self.animated_rect, border_radius=12)
-            #print(f'clicked is false : {self.animated_rect.y}')
-        else:
-            #print(f'clicked is true : {self.animated_rect.y}')
-            p.draw.rect(self.screen, self.color_top, self.animated_rect, border_radius=12)
 
+        p.draw.rect(self.screen, self.color_bottom, self.static_rect, border_radius=12)
+        p.draw.rect(self.screen, self.color_top, self.animated_rect, border_radius=12)
         self.screen.blit(self.text, (self.pos[0] + (0.2 * self.size[0]), btn_y))
-        self.click()
 
     def click(self):
         mouse = p.mouse.get_pos()
         if self.animated_rect.collidepoint(mouse):
-            #self.hovering()
+            self.hovering()
             if p.mouse.get_pressed()[0] is True:
                 self.button_h = self.pos[1] + 6
                 self.clicked = True
