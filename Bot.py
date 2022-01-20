@@ -17,8 +17,8 @@ class Bot:
         iterator = random.randint(0, len(moves_list) - 1)
         return moves_list[iterator]
 
-    def get_best_move(self):
-        result = self.engine.play(self.board, chess.engine.Limit(time=1, depth= 10))
+    def get_best_move(self, depth: int = 10):
+        result = self.engine.play(self.board, chess.engine.Limit(time=1, depth= depth))
         return str(result.move)
 
     def analyse_pos(self):

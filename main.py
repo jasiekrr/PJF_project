@@ -1,4 +1,7 @@
+# WCY19IJ2S1 Jan Romańczuk
 import sys
+
+from Bot import Bot
 from CurrentPosition import CurrentPosition
 import pygame as p
 from Background import Background
@@ -9,11 +12,13 @@ import chess
 import chess.engine
 
 PLAYER_TO_MOVE = None
-event_log = []
 MOVED = False
-en_passant_pawn = None
 AGAINST_BOT = False
 CHOSEN_COLOR = True
+CHALLENGE = False
+PREVIOUS_MOVES = ()
+en_passant_pawn = None
+event_log = []
 
 
 def app_Run():
@@ -26,16 +31,18 @@ def app_Run():
     cp.reset_position(screen)
     tlo = Background(screen)
 
-    btn_restart = Button(screen, (550, 80), "restart", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
-    btn_challenge = Button(screen, (550, 180), "train", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
-    btn_against_bot = Button(screen, (550, 280), "pvp", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
-    btn_exit = Button(screen, (550, 380), "exit", (100, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
-    btn_change_color = Button(screen, (80, 550), "change color", (200, 50), (10, 20, 10), (105, 105, 105),
+    btn_restart = Button(screen, (550, 80), " restart", (130, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
+    btn_challenge = Button(screen, (550, 180), "position", (130, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
+    btn_against_bot = Button(screen, (550, 280), "    bot", (130, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
+    btn_exit = Button(screen, (550, 620), "  exit", (100, 50), 	(200,51,51), (255,102,102), (255, 255, 255))
+    btn_bot_move = Button(screen, (550, 380), "  move", (130, 50), (19, 143, 118), (91, 181, 131), (255, 255, 255))
+    btn_change_color = Button(screen, (300, 620), "change color", (200, 50), (10, 20, 10), (105, 105, 105),
                               (255, 255, 255))
     global PLAYER_TO_MOVE
     global MOVED
     global AGAINST_BOT
     global CHOSEN_COLOR
+    global CHALLENGE
     PLAYER_TO_MOVE = True
     clicks = []
 
@@ -52,11 +59,14 @@ def app_Run():
                 event_restart(cp, screen, clicks)
             elif btn_challenge.clicked is True:
                 AGAINST_BOT = False
+                CHALLENGE = True
                 event_challenge(cp, screen, clicks)
             elif btn_against_bot.clicked is True:
-                AGAINST_BOT = True
+                event_against_bot(cp, screen, clicks, CHOSEN_COLOR)
             elif btn_change_color.clicked is True:
                 btn_change_color = event_change_color(cp, screen, clicks, btn_change_color)
+            elif btn_bot_move.clicked is True:
+                event_make_move(cp,screen,clicks)
             elif btn_exit.clicked is True:
                 sys.exit()
             else:
@@ -67,6 +77,8 @@ def app_Run():
         btn_against_bot.draw()
         btn_exit.draw()
         btn_change_color.draw()
+        btn_bot_move.draw()
+        draw_status(cp, screen, clicks)
         clk.tick(60)
         p.display.flip()
 
@@ -88,7 +100,7 @@ def manage_click():
             print(num_to_pgn(sq_selected[0], sq_selected[1]))
             return num_to_pgn(sq_selected[0], sq_selected[1])
         else:
-            sq_selected = 8 - (point_x // 64) ,(point_y // 64 + 1)
+            sq_selected = 8 - (point_x // 64), (point_y // 64 + 1)
             print(num_to_pgn(sq_selected[0], sq_selected[1]))
             return num_to_pgn(sq_selected[0], sq_selected[1])
     else:
@@ -100,14 +112,12 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
     global en_passant_pawn
     global MOVED
     global event_log
+
     sq_pgn = manage_click()
     if move is not None:
         event_log = [move[0] + move[1]]
         sq_pgn = move[2] + move[3]
         clicks.append(event_log[0])
-        print(
-            f"ruch silnika, clicks: {clicks} , event log: {event_log}  , sq_pgn : {sq_pgn} , player : {PLAYER_TO_MOVE}")
-
     if sq_pgn is not None:
         if PLAYER_TO_MOVE is True:  # white to move
             pieces = cp.white_pieces
@@ -126,11 +136,9 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
 
                 if chess.Move.from_uci(move_squares + "q") in cp.bot.board.legal_moves:
                     move_squares += 'q'
-
                 if chess.Move.from_uci(
                         move_squares) in cp.bot.board.legal_moves:  # checking whether requested move is legal
                     # if it is, executing a move:
-                    print(f'sq_pgn = {sq_pgn}')
                     check_en_passant(move_squares, sq_pgn, cp, pieces, opponent_pieces)
                     en_passant_pawn = set_en_passant(cp, move_squares, event_log, sq_pgn, pieces, opponent_pieces)
 
@@ -180,6 +188,7 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
                         cp.black_long_castles_rights = False
                     if move is None:
                         MOVED = True
+
                     board_refresh(cp, move_squares, screen, clicks)
                     clicks.clear()
                 else:  # if move is illegal, resetting list of clicks to 1
@@ -190,6 +199,9 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
     global PLAYER_TO_MOVE
     global AGAINST_BOT
     global MOVED
+    global CHALLENGE
+    global PREVIOUS_MOVES
+    PREVIOUS_MOVES = (None, None)
 
     if PLAYER_TO_MOVE is True:
         pieces = cp.white_pieces
@@ -200,7 +212,7 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
 
     eventlog = [move_squares[0] + move_squares[1], move_squares[2] + move_squares[3]]
     sq_pgn = eventlog[1]
-    print(f'wykonnay ruch: {move_squares}')
+
     print(cp.bot.analyse_pos())
 
     moved_piece = pieces[eventlog[-2]]
@@ -214,13 +226,30 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
         del pieces[sq_pgn]
         pawn_promotion(PLAYER_TO_MOVE, sq_pgn[0], cp, screen)
 
+    display_board(screen)  # redrawing chessboard
+    if AGAINST_BOT is True and MOVED is True:
+        engine_move = cp.bot.get_best_move()
+        PREVIOUS_MOVES = (move_squares, engine_move)
+        draw_bot_result(move_squares, screen, cp, PREVIOUS_MOVES[0], PREVIOUS_MOVES[1])
+    else:
+        draw_bot_result(move_squares, screen, cp, PREVIOUS_MOVES[0], PREVIOUS_MOVES[1])
+
     cp.bot.board.push(chess.Move.from_uci(move_squares))
 
-    display_board(screen)  # redrawing chessboard
     cp.draw_position(CHOSEN_COLOR)  # drawing updated pieces
+
+    if CHOSEN_COLOR == PLAYER_TO_MOVE:
+        MOVED = True
+    else:
+        MOVED = False
 
     PLAYER_TO_MOVE = not PLAYER_TO_MOVE
 
+    if AGAINST_BOT and CHALLENGE and cp.bot.board.is_game_over():
+        print("koniec gry")
+        end_game(cp, screen, clicks)
+        CHALLENGE = False
+    """
     if AGAINST_BOT is True and MOVED is True:  # if managed move was made by a player its engine's turn to make move
         clicks.clear()
         MOVED = False
@@ -228,11 +257,12 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
             engine_move = cp.bot.get_best_move()
             manage_move(screen, cp, clicks, str(engine_move))
         else:
-            print("koniec gry")
+            print("koniec gry 1 ")
     else:
         if cp.bot.board.is_game_over() is True:
-            print("koniec gry")
+            print("koniec gry 2 ")
             event_restart(cp, screen, clicks)
+    """
     p.display.flip()
 
 
@@ -330,10 +360,6 @@ def pawn_promotion(player: bool, line: str, cp: CurrentPosition, screen: p.surfa
         wqn = Queen(cp.black_pieces, screen, square, False)
 
 
-def manage_buttons(n: int, screen: p.surface, font: p.font):
-    btn_restart = Button(screen, (600, 100), "restart", (100, 50), (1, 0, 0), (1, 1, 0), (1, 1, 1), font)
-
-
 def event_restart(cp: CurrentPosition, screen: p.surface, clicks: list, color_change: bool = True):
     global PLAYER_TO_MOVE
     global MOVED
@@ -354,9 +380,10 @@ def event_restart(cp: CurrentPosition, screen: p.surface, clicks: list, color_ch
     AGAINST_BOT = False
 
 
-def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=12, doctrine=True):
+def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=20, doctrine=False):
     global PLAYER_TO_MOVE
-    cp.reset_position(screen)
+    global CHOSEN_COLOR
+    event_restart(cp, screen, clicks, CHOSEN_COLOR)
 
     if doctrine is True:
         while not ("Mate" in cp.bot.analyse_pos()):
@@ -365,17 +392,29 @@ def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=12, 
                 manage_move(screen, cp, clicks, str(result.move))
             else:
                 print("koniec gry")
+                end_game(cp, screen, clicks)
+        event_against_bot(cp, screen, clicks, PLAYER_TO_MOVE)
+        to_mate = cp.bot.analyse_pos()
+        to_mate = int(to_mate[15])
+        print(f"mate in {to_mate} moves")
 
     else:
         while not ("Mate" in cp.bot.analyse_pos()):
             if cp.bot.board.is_game_over() is False:
-                move = cp.bot.get_random_move()
-                board_refresh(cp, str(move), screen, clicks)
-
                 result_move = cp.bot.get_best_move()
-                board_refresh(cp, str(result_move), screen, clicks)
+                manage_move(screen, cp, clicks, str(result_move))
+                move = cp.bot.get_random_move()
+                manage_move(screen, cp, clicks, str(move))
+
             else:
                 print("koniec gry")
+                end_game(cp,screen,clicks)
+
+        print(PLAYER_TO_MOVE)
+        event_against_bot(cp, screen, clicks, PLAYER_TO_MOVE)
+        to_mate = cp.bot.analyse_pos()
+        to_mate = int(to_mate[15])
+        print(f"mate in {to_mate} moves")
 
     display_board(screen)  # redrawing chessboard
     cp.draw_position()  # drawing updated pieces
@@ -383,12 +422,14 @@ def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=12, 
     clicks.clear()
 
 
-def event_against_bot(cp: CurrentPosition, screen: p.surface, clicks: list, btn_restart, btn_against_bot, btn_exit,
-                      btn_challenge, color: bool = True):
+def event_against_bot(cp: CurrentPosition, screen: p.surface, clicks: list, color: bool = True):
     global PLAYER_TO_MOVE
     global MOVED
+    global AGAINST_BOT
+
     MOVED = not color
-    event_restart(cp, screen, clicks)
+    print(f' MOVED = {MOVED}')
+    AGAINST_BOT = True
 
 
 def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn: Button):
@@ -397,11 +438,10 @@ def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn
     global MOVED
 
     CHOSEN_COLOR = not CHOSEN_COLOR
-    PLAYER_TO_MOVE = CHOSEN_COLOR
+    PLAYER_TO_MOVE = True
 
     event_restart(cp, screen, clicks, CHOSEN_COLOR)
 
-    print(PLAYER_TO_MOVE)
     if CHOSEN_COLOR is True:
         del btn
         btn = Button(screen, (80, 550), "change color", (200, 50), (10, 20, 10), (105, 105, 105),
@@ -412,6 +452,133 @@ def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn
                      (10, 20, 10))
 
     return btn
+
+
+def draw_bot_result(move: str, screen: p.surface, cp: CurrentPosition, previous_move: str = None,
+                    previous_best: str = None):
+    global CHALLENGE
+    global CHOSEN_COLOR
+
+    if previous_move is None:
+        best_move = cp.bot.get_best_move()
+        sq1_best = best_move[0] + best_move[1]
+        sq2_best = best_move[2] + best_move[3]
+    else:
+        best_move = previous_best
+        sq1_best = best_move[0] + best_move[1]
+        sq2_best = best_move[2] + best_move[3]
+        move = previous_move
+
+    print(f'ruch obecny : {move} , ruch poprzedni: {previous_move}')
+    if CHOSEN_COLOR:
+        if CHALLENGE is True:
+            if move is not (sq1_best, sq2_best):
+                red1 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+                red2 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(sq1_best)[0] - 1) * 64,
+                                            (7 - (pgn_to_num(sq1_best)[1] - 1)) * 64,
+                                            64,
+                                            64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(sq2_best)[0] - 1) * 64,
+                                            (7 - (pgn_to_num(sq2_best)[1] - 1)) * 64,
+                                            64,
+                                            64))
+            else:
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                            (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                            (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+        else:
+            yellow1 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                         (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+            yellow2 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                         (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+            green1 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((pgn_to_num(sq1_best)[0] - 1) * 64, (7 - (pgn_to_num(sq1_best)[1] - 1)) * 64,
+                                        64,
+                                        64))
+            green2 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((pgn_to_num(sq2_best)[0] - 1) * 64, (7 - (pgn_to_num(sq2_best)[1] - 1)) * 64,
+                                        64,
+                                        64))
+    else:
+        if CHALLENGE is True:
+            if move is not (sq1_best, sq2_best):
+                red1 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                          (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                red2 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((7 - (pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                          (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                            (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                            (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+            else:
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                            (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                            (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+        else:
+            yellow1 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                         (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+            yellow2 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((7 - (pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                         (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+            green1 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((7 - (pgn_to_num(sq1_best)[0] - 1)) * 64,
+                                        (pgn_to_num(sq1_best)[1] - 1) * 64, 64, 64))
+            green2 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((7 - (pgn_to_num(sq2_best)[0] - 1)) * 64,
+                                        (pgn_to_num(sq2_best)[1] - 1) * 64, 64, 64))
+
+
+def event_make_move(cp: CurrentPosition, screen: p.surface, clicks: list):
+    global MOVED
+
+    if AGAINST_BOT is True and MOVED is True:
+        clicks.clear()
+        MOVED = False
+        if cp.bot.board.is_game_over() is False:
+            engine_move = cp.bot.get_best_move()
+            manage_move(screen, cp, clicks, str(engine_move))
+    else:
+        if cp.bot.board.is_game_over() is True:
+            event_restart(cp, screen, clicks)
+
+def end_game(cp : CurrentPosition, screen : p.surface, clicks: list):
+    print(cp.bot.board.outcome())
+    results = p.draw.rect(screen, p.Color("cyan"), p.Rect(100, 220, 420, 100))
+    text_value = "CHECKMATE, PRESS RESTART"
+    text_font = p.font.Font(None, 30)
+    text = text_font.render(text_value, True, (0,0,0))
+    screen.blit(text, (150, 271))
+
+def draw_status(cp: CurrentPosition, screen : p.surface, clicks: list):
+    #text_value = cp.bot.analyse_pos()
+    text_value = cp.bot.analyse_pos()
+    text_font = p.font.Font(None, 30)
+    text = text_font.render(text_value, True, (250,140,150))
+    scores = p.draw.rect(screen, p.Color("dark green"), p.Rect(0, 525, 340, 80))
+
+    screen.blit(text, (30, 550))
 
 
 if __name__ == '__main__':
