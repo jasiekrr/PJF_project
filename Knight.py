@@ -1,8 +1,8 @@
 import pygame as p
-import numpy as np
-import chess
-from Piece import Piece
-class Knight(Piece):
+
+from Element import Element
+
+class Knight(Element):
     def __init__(self,chessboard, screen: p.surface, position: str, player: bool):
         self.screen = screen
         self.position = position

@@ -1,6 +1,5 @@
 import pygame as p
-import numpy as np
-import chess
+
 from Element import Element
 
 

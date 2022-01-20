@@ -1,5 +1,6 @@
 import pygame as p
-import chess
+
+from Bot import Bot
 from Pawn import Pawn
 from King import King
 from Knight import Knight
@@ -16,7 +17,8 @@ def pgn_to_num(position: str) -> tuple:
 class CurrentPosition:
     def __init__(self, screen: p.surface):
         # BOOLS:
-        self.board = None
+        self.bot = None
+        # self.board = None
         self.white_long_castles_rights = True
         self.white_short_castles_rights = True
         self.black_long_castles_rights = True
@@ -31,14 +33,22 @@ class CurrentPosition:
         self.white_pieces = {}
         self.black_pieces = {}
 
-    def draw_position(self):
-        for piece in self.white_pieces:
-            self.white_pieces[piece].draw_element()
-        for piece in self.black_pieces:
-            self.black_pieces[piece].draw_element()
+    def draw_position(self, player: bool = True):
+        if player is True:
+            for piece in self.white_pieces:
+                self.white_pieces[piece].draw_element()
+            for piece in self.black_pieces:
+                self.black_pieces[piece].draw_element()
+        else:
+            for piece in self.white_pieces:
+                self.white_pieces[piece].draw_element(player=player)
+            for piece in self.black_pieces:
+                self.black_pieces[piece].draw_element(player=player)
 
+        print(self.black_pieces)
     def reset_position(self, screen):
-        self.board = chess.Board()
+        self.bot = Bot()
+        # self.board = chess.Board()
         self.white_pieces.clear()
         self.black_pieces.clear()
         self.white_queens_spawned = 0

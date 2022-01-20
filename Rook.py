@@ -1,9 +1,9 @@
 import pygame as p
-import numpy as np
-import chess
-from Piece import Piece
-class Rook(Piece):
-    def __init__(self,chessboard, screen: p.surface, position: str, player: bool):
+from Element import Element
+
+
+class Rook(Element):
+    def __init__(self, chessboard, screen: p.surface, position: str, player: bool):
         self.screen = screen
         self.position = position
         self.player = player
