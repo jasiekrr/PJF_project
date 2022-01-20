@@ -18,7 +18,7 @@ class Bot:
         return moves_list[iterator]
 
     def get_best_move(self):
-        result = self.engine.play(self.board, chess.engine.Limit(time=1, depth= 10))
+        result = self.engine.play(self.board, chess.engine.Limit(time=2, depth= 10))
         return str(result.move)
 
     def analyse_pos(self):

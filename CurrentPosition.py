@@ -45,7 +45,6 @@ class CurrentPosition:
             for piece in self.black_pieces:
                 self.black_pieces[piece].draw_element(player=player)
 
-        print(self.black_pieces)
     def reset_position(self, screen):
         self.bot = Bot()
         # self.board = chess.Board()
