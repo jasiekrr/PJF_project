@@ -51,8 +51,12 @@ class Button(p.sprite.Sprite):
             self.color_top = self.color_top_original
 
     def hovering(self):
-        if self.color_top[1] + 50 > 255:
-            hovering_color = self.color_top[0], 255, self.color_top[2]
+        if self.color_top_original[0] + 50 > 255:
+            hovering_color = 255, self.color_top_original[1], self.color_top_original[2]
+        elif self.color_top_original[1] + 50 > 255:
+            hovering_color = self.color_top_original[0], 255, self.color_top_original[2]
+        elif self.color_top[2] + 50 > 255:
+            hovering_color = self.color_top_original[0], self.color_top_original[1], 255
         else:
-            hovering_color = self.color_top[0], self.color_top[1] + 50, self.color_top[2]
+            hovering_color = (self.color_top_original[0] + 50, self.color_top_original[1] + 50, self.color_top_original[2] + 50)
         self.color_top = hovering_color

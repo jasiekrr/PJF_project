@@ -1,5 +1,4 @@
 import pygame as p
-import chess
 
 from Bot import Bot
 from Pawn import Pawn
@@ -34,12 +33,19 @@ class CurrentPosition:
         self.white_pieces = {}
         self.black_pieces = {}
 
-    def draw_position(self):
-        for piece in self.white_pieces:
-            self.white_pieces[piece].draw_element()
-        for piece in self.black_pieces:
-            self.black_pieces[piece].draw_element()
+    def draw_position(self, player: bool = True):
+        if player is True:
+            for piece in self.white_pieces:
+                self.white_pieces[piece].draw_element()
+            for piece in self.black_pieces:
+                self.black_pieces[piece].draw_element()
+        else:
+            for piece in self.white_pieces:
+                self.white_pieces[piece].draw_element(player=player)
+            for piece in self.black_pieces:
+                self.black_pieces[piece].draw_element(player=player)
 
+        print(self.black_pieces)
     def reset_position(self, screen):
         self.bot = Bot()
         # self.board = chess.Board()

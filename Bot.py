@@ -6,8 +6,9 @@ import chess.engine
 class Bot:
     def __init__(self):
         self.board = chess.Board()
+        #self.engine = await chess.engine.popen_uci(r"C:\Users\jroma\Desktop\stockfish\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe")
         self.engine = chess.engine.SimpleEngine.popen_uci(
-            r"C:\Users\jroma\Desktop\stockfish\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe")
+           r"C:\Users\jroma\Desktop\stockfish\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe")
 
     def get_random_move(self):
         moves_list = []
@@ -18,11 +19,8 @@ class Bot:
 
     def get_best_move(self):
         result = self.engine.play(self.board, chess.engine.Limit(time=1, depth= 10))
-        self.board.push(result.move)
         return str(result.move)
 
     def analyse_pos(self):
-        info = self.engine.analyse(self.board, chess.engine.Limit(time=0.1))
-        print("Score:", info["score"])
         info = self.engine.analyse(self.board, chess.engine.Limit(depth=10))
-        print("Score with depth:", info["score"])
+        return str(info["score"])
