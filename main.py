@@ -1,3 +1,4 @@
+# WCY19IJ2S1 Jan Romańczuk
 import sys
 
 from Bot import Bot
