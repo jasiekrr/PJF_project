@@ -1,4 +1,6 @@
 import sys
+
+from Bot import Bot
 from CurrentPosition import CurrentPosition
 import pygame as p
 from Background import Background
@@ -9,12 +11,13 @@ import chess
 import chess.engine
 
 PLAYER_TO_MOVE = None
-event_log = []
 MOVED = False
-en_passant_pawn = None
 AGAINST_BOT = False
 CHOSEN_COLOR = True
+CHALLENGE = False
 
+en_passant_pawn = None
+event_log = []
 
 def app_Run():
     p.init()
@@ -36,6 +39,7 @@ def app_Run():
     global MOVED
     global AGAINST_BOT
     global CHOSEN_COLOR
+    global CHALLENGE
     PLAYER_TO_MOVE = True
     clicks = []
 
@@ -52,6 +56,7 @@ def app_Run():
                 event_restart(cp, screen, clicks)
             elif btn_challenge.clicked is True:
                 AGAINST_BOT = False
+                CHALLENGE = True
                 event_challenge(cp, screen, clicks)
             elif btn_against_bot.clicked is True:
                 AGAINST_BOT = True
@@ -117,11 +122,13 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
             opponent_pieces = cp.white_pieces
 
         if sq_pgn in pieces:  # checking whether player's piece is clicked
+            print(clicks)
             event_log.append(sq_pgn)
             clicks.clear()
             clicks.append(sq_pgn)
         else:
             if len(clicks) == 1:
+                print(pieces[event_log[-1]])
                 move_squares = event_log[-1] + sq_pgn  # saving a move in format : "sq1sq2"
 
                 if chess.Move.from_uci(move_squares + "q") in cp.bot.board.legal_moves:
@@ -139,7 +146,6 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
                         cp.white_short_castles_rights = False
                         pieces.update({"f1": pieces["h1"], sq_pgn: pieces["h1"]})  # adding new position to dict
                         del pieces["h1"]  # deleting obsolete position
-                        print("roszada")
 
                     elif PLAYER_TO_MOVE is True and sq_pgn == "c1" and cp.white_long_castles_rights is True and \
                             (move_squares[0] + move_squares[1]) == "e1":  # managing
@@ -179,6 +185,7 @@ def manage_move(screen: p.surface, cp: CurrentPosition, clicks: list, move: str 
                         cp.black_long_castles_rights = False
                     if move is None:
                         MOVED = True
+
                     board_refresh(cp, move_squares, screen, clicks)
                     clicks.clear()
                 else:  # if move is illegal, resetting list of clicks to 1
@@ -189,6 +196,7 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
     global PLAYER_TO_MOVE
     global AGAINST_BOT
     global MOVED
+    global CHALLENGE
 
     if PLAYER_TO_MOVE is True:
         pieces = cp.white_pieces
@@ -213,12 +221,22 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
         del pieces[sq_pgn]
         pawn_promotion(PLAYER_TO_MOVE, sq_pgn[0], cp, screen)
 
+    display_board(screen)  # redrawing chessboard
+    print(f"draw results: {move_squares}")
+    draw_result(move_squares, screen, cp)
     cp.bot.board.push(chess.Move.from_uci(move_squares))
 
-    display_board(screen)  # redrawing chessboard
     cp.draw_position(CHOSEN_COLOR)  # drawing updated pieces
 
+    if CHOSEN_COLOR == PLAYER_TO_MOVE:
+        MOVED = True
+    else:
+        MOVED = False
+
     PLAYER_TO_MOVE = not PLAYER_TO_MOVE
+
+    if AGAINST_BOT and CHALLENGE and cp.bot.board.is_game_over():
+        CHALLENGE = False
 
     if AGAINST_BOT is True and MOVED is True:  # if managed move was made by a player its engine's turn to make move
         clicks.clear()
@@ -227,10 +245,10 @@ def board_refresh(cp: CurrentPosition, move_squares: str, screen: p.surface, cli
             engine_move = cp.bot.get_best_move()
             manage_move(screen, cp, clicks, str(engine_move))
         else:
-            print("koniec gry")
+            print("koniec gry 1 ")
     else:
         if cp.bot.board.is_game_over() is True:
-            print("koniec gry")
+            print("koniec gry 2 ")
             event_restart(cp, screen, clicks)
     p.display.flip()
 
@@ -329,10 +347,6 @@ def pawn_promotion(player: bool, line: str, cp: CurrentPosition, screen: p.surfa
         wqn = Queen(cp.black_pieces, screen, square, False)
 
 
-def manage_buttons(n: int, screen: p.surface, font: p.font):
-    btn_restart = Button(screen, (600, 100), "restart", (100, 50), (1, 0, 0), (1, 1, 0), (1, 1, 1), font)
-
-
 def event_restart(cp: CurrentPosition, screen: p.surface, clicks: list, color_change: bool = True):
     global PLAYER_TO_MOVE
     global MOVED
@@ -379,7 +393,7 @@ def event_challenge(cp: CurrentPosition, screen: p.surface, clicks: list, n=20, 
                 manage_move(screen, cp, clicks, str(move))
 
             else:
-                print("koniec gry")
+                print("koniec gry w evnt")
 
         print(PLAYER_TO_MOVE)
         event_against_bot(cp, screen, clicks, PLAYER_TO_MOVE)
@@ -399,7 +413,6 @@ def event_against_bot(cp: CurrentPosition, screen: p.surface, clicks: list, colo
     global AGAINST_BOT
     MOVED = not color
     AGAINST_BOT = True
-    #event_restart(cp, screen, clicks, CHOSEN_COLOR)
 
 
 def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn: Button):
@@ -408,11 +421,11 @@ def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn
     global MOVED
 
     CHOSEN_COLOR = not CHOSEN_COLOR
-    PLAYER_TO_MOVE = CHOSEN_COLOR
+    PLAYER_TO_MOVE = True
 
     event_restart(cp, screen, clicks, CHOSEN_COLOR)
 
-    print(PLAYER_TO_MOVE)
+
     if CHOSEN_COLOR is True:
         del btn
         btn = Button(screen, (80, 550), "change color", (200, 50), (10, 20, 10), (105, 105, 105),
@@ -423,6 +436,90 @@ def event_change_color(cp: CurrentPosition, screen: p.surface, clicks: list, btn
                      (10, 20, 10))
 
     return btn
+
+
+def draw_result(move: str, screen: p.surface, cp: CurrentPosition):
+    global CHALLENGE
+    global CHOSEN_COLOR
+    best_move = cp.bot.get_best_move()
+    sq1_best = best_move[0] + best_move[1]
+    sq2_best = best_move[2] + best_move[3]
+
+    if CHOSEN_COLOR:
+        if CHALLENGE is True:
+            if move is not (sq1_best, sq2_best):
+                red1 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+                red2 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(sq1_best)[0] - 1) * 64, (7 - (pgn_to_num(sq1_best)[1] - 1)) * 64,
+                                            64,
+                                            64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((pgn_to_num(sq2_best)[0] - 1) * 64, (7 - (pgn_to_num(sq2_best)[1] - 1)) * 64,
+                                            64,
+                                            64))
+            else:
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                   p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                   p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                          (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+        else:
+            yellow1 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((pgn_to_num(move[0] + move[1])[0] - 1) * 64,
+                                         (7 - (pgn_to_num(move[0] + move[1])[1] - 1)) * 64, 64, 64))
+            yellow2 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((pgn_to_num(move[2] + move[3])[0] - 1) * 64,
+                                         (7 - (pgn_to_num(move[2] + move[3])[1] - 1)) * 64, 64, 64))
+            green1 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((pgn_to_num(sq1_best)[0] - 1) * 64, (7 - (pgn_to_num(sq1_best)[1] - 1)) * 64, 64,
+                                        64))
+            green2 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((pgn_to_num(sq2_best)[0] - 1) * 64, (7 - (pgn_to_num(sq2_best)[1] - 1)) * 64, 64,
+                                        64))
+    else:
+        if CHALLENGE is True:
+            if move is not (sq1_best, sq2_best):
+                red1 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                          (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                red2 = p.draw.rect(screen, p.Color("Red"),
+                                   p.Rect((7-(pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                          (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                            (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7-(pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                            (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+            else:
+                green1 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                            (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+                green2 = p.draw.rect(screen, p.Color("Green"),
+                                     p.Rect((7-(pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                            (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+        else:
+            yellow1 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((7 - (pgn_to_num(move[0] + move[1])[0] - 1)) * 64,
+                                         (pgn_to_num(move[0] + move[1])[1] - 1) * 64, 64, 64))
+            yellow2 = p.draw.rect(screen, p.Color("Yellow"),
+                                  p.Rect((7 - (pgn_to_num(move[2] + move[3])[0] - 1)) * 64,
+                                         (pgn_to_num(move[2] + move[3])[1] - 1) * 64, 64, 64))
+            green1 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((7 - (pgn_to_num(sq1_best)[0] - 1)) * 64,
+                                        (pgn_to_num(sq1_best)[1] - 1) * 64, 64, 64))
+            green2 = p.draw.rect(screen, p.Color("Green"),
+                                 p.Rect((7 - (pgn_to_num(sq2_best)[0] - 1)) * 64,
+                                        (pgn_to_num(sq2_best)[1] - 1) * 64, 64, 64))
+
 
 
 if __name__ == '__main__':

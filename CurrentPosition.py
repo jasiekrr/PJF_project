@@ -33,6 +33,8 @@ class CurrentPosition:
         self.white_pieces = {}
         self.black_pieces = {}
 
+
+
     def draw_position(self, player: bool = True):
         if player is True:
             for piece in self.white_pieces:
